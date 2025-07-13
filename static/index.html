@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Список Сирков</title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				padding: 20px;
+				background-color: #f2f2f2;
+			}
+			h1 {
+				text-align: center;
+			}
+			.sirok-list {
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+				max-width: 600px;
+				margin: auto;
+			}
+			.sirok-item {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				background: white;
+				padding: 15px;
+				border-radius: 20px;
+				box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+			}
+
+			.item-photo {
+				width: 80px;
+				height: 80px;
+				border-radius: 10px;
+				object-fit: cover;
+				margin-right: 20px;
+				flex-shrink: 0;
+			}
+
+			.item-info {
+				flex-grow: 1;
+			}
+
+			.item-title {
+				font-weight: bold;
+				font-size: 18px;
+			}
+
+			.item-flavor {
+				color: #555;
+			}
+
+			.item-rating {
+				width: 60px;
+				height: 60px;
+				border-radius: 15px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-weight: bold;
+				color: white;
+				flex-shrink: 0;
+				font-size: 16px;
+			}
+			.add-form {
+				display: none;
+				flex-direction: column;
+				gap: 10px;
+				margin-top: 20px;
+			}
+			button {
+				padding: 10px 15px;
+				background-color: #4caf50;
+				color: white;
+				border: none;
+				border-radius: 5px;
+				cursor: pointer;
+			}
+			button:hover {
+				background-color: #45a049;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Список Сирков</h1>
+
+		<div
+			style="
+				max-width: 600px;
+				margin: auto;
+				display: flex;
+				gap: 10px;
+				flex-wrap: wrap;
+				margin-bottom: 10px;
+			"
+		>
+			<input
+				type="text"
+				id="searchInput"
+				placeholder="Поиск сирков..."
+				oninput="renderSirok()"
+				style="flex: 1; padding: 10px"
+			/>
+			<button onclick="fetchSirok('title')">Сортировать по названию</button>
+			<button onclick="fetchSirok('rating')">Сортировать по рейтингу</button>
+		</div>
+
+		<div class="sirok-list" id="gameList"></div>
+
+		<div style="text-align: center; margin-top: 20px">
+			<button onclick="toggleForm()">Добавить сирок</button>
+		</div>
+
+		<form class="add-form" id="addForm" onsubmit="return submitForm(event)">
+			<input type="text" id="title" placeholder="Название" required />
+			<input type="text" id="flavor" placeholder="Вкус" required />
+			<input
+				type="number"
+				step="0.1"
+				id="rating"
+				placeholder="Рейтинг"
+				required
+			/>
+			<input type="text" id="image" placeholder="Ссылка на картинку" required />
+			<button type="submit">Сохранить</button>
+		</form>
+
+		<script>
+			let allItems = []
+			let currentSort = ''
+			let currentQuery = ''
+
+			async function fetchSirok(sort = '') {
+				const search = document.getElementById('searchInput')?.value || ''
+				let url = `/items?search=${encodeURIComponent(search)}`
+				if (sort) url += `&sort=${sort}`
+
+				const res = await fetch(url)
+				const data = await res.json()
+
+				allItems = data // ✅ сохраняем в глобальную переменную
+				currentSort = sort // ✅ если сортировали — запомним это
+				renderSirok() // ✅ теперь вызываем корректную отрисовку
+			}
+
+			function renderSirok() {
+				const list = document.getElementById('gameList')
+				const query = document.getElementById('searchInput').value.toLowerCase()
+				currentQuery = query
+				let filtered = allItems.filter(
+					item =>
+						item.title.toLowerCase().includes(query) ||
+						item.flavor.toLowerCase().includes(query)
+				)
+
+				if (currentSort === 'title') {
+					filtered.sort((a, b) => a.title.localeCompare(b.title))
+				} else if (currentSort === 'rating') {
+					filtered.sort((a, b) => b.rating - a.rating)
+				}
+
+				list.innerHTML = ''
+				filtered.forEach(item => {
+					const div = document.createElement('div')
+					div.className = 'sirok-item'
+
+					const photo = document.createElement('img')
+					photo.className = 'item-photo'
+					photo.src = item.image || 'https://via.placeholder.com/80'
+					photo.alt = 'фото'
+
+					const info = document.createElement('div')
+					info.className = 'item-info'
+					info.innerHTML = `
+			<div class="item-title">${item.title}</div>
+			<div class="item-flavor">Вкус: ${item.flavor}</div>
+		`
+
+					const rating = document.createElement('div')
+					rating.className = 'item-rating'
+					rating.innerText = item.rating
+
+					// Цвет рейтинга
+					if (item.rating <= 3.5) {
+						rating.style.backgroundColor = '#e74c3c' // красный
+					} else if (item.rating <= 7.4) {
+						rating.style.backgroundColor = '#f1c40f' // жёлтый
+					} else {
+						rating.style.backgroundColor = '#2ecc71' // зелёный
+					}
+
+					div.appendChild(photo)
+					div.appendChild(info)
+					div.appendChild(rating)
+
+					list.appendChild(div)
+				})
+			}
+
+			function setSort(type) {
+				currentSort = type
+				renderSirok()
+			}
+
+			function toggleForm() {
+				const form = document.getElementById('addForm')
+				form.style.display = form.style.display === 'flex' ? 'none' : 'flex'
+			}
+
+			async function submitForm(event) {
+				event.preventDefault()
+				const title = document.getElementById('title').value
+				const flavor = document.getElementById('flavor').value
+				const rating = parseFloat(document.getElementById('rating').value)
+				const image = document.getElementById('image').value
+
+				const res = await fetch('/add', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						id: Date.now(),
+						title,
+						flavor,
+						rating,
+						image,
+					}),
+				})
+
+				if (res.ok) {
+					await fetchSirok()
+					document.getElementById('addForm').reset()
+					toggleForm()
+				} else {
+					alert('Ошибка при добавлении сирка')
+				}
+			}
+
+			window.onload = fetchSirok
+		</script>
+	</body>
+</html>
